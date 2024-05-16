@@ -443,6 +443,17 @@ class FastInfluxDBClient(DatabaseClientBase):
         org = org or self.org
         return self._client.query_api().query(org=org, query=query)
 
+    def query_dataframe(self, query: str, org: str = None):
+        """
+        Query data from InfluxDB and return as a pandas DataFrame.
+
+        :param query: The query string.
+        :param org: The organization name.
+        :return: The query result as a pandas DataFrame.
+        """
+        org = org or self.org
+        return self._client.query_api().query_data_frame(org=org, query=query)
+
     def __repr__(self):
         return f"FastInfluxDBClient(url={self._client.url}, org={self._client.org}, default_bucket={self.default_bucket})"
 
