@@ -17,6 +17,7 @@ import asyncio
 MAX_BUFFER_LENGTH = 65_536
 WRITE_BATCH_SIZE = 5_000
 
+
 def load_config(filepath: Union[str, Path]) -> dict:
     if isinstance(filepath, str):
         filepath = Path(filepath)
@@ -79,21 +80,21 @@ class DatabaseClientBase(ABC):
     def convert(self, data):
         return data
 
-    async def async_drain(self):
-        """Flush the buffer to the database asynchronously."""
-        if self._buffer:
-            await self.write(self._buffer)
-            self._buffer = []
+    # async def async_drain(self):
+    #     """Flush the buffer to the database asynchronously."""
+    #     if self._buffer:
+    #         await self.write(self._buffer)
+    #         self._buffer = []
 
-    def drain(self):
-        """Start a new thread to flush the buffer to the database."""
-        import threading
+    # def drain(self):
+    #     """Start a new thread to flush the buffer to the database."""
+    #     import threading
 
-        threading.Thread(target=self._drain_thread).start()
+    #     threading.Thread(target=self._drain_thread).start()
 
-    def _drain_thread(self):
-        """Wrapper method for threaded draining."""
-        asyncio.run(self.drain())
+    # def _drain_thread(self):
+    #     """Wrapper method for threaded draining."""
+    #     asyncio.run(self.async_drain())
 
     def close(self):
         """Shutdown the client."""
@@ -103,7 +104,10 @@ class DatabaseClientBase(ABC):
         while True:
             time_condition = (time.time() - self._last_write_time) > self.write_interval
             if self.buffer and (len(self.buffer) > WRITE_BATCH_SIZE or time_condition):
-                metrics = tuple(self.buffer.popleft() for _ in range(min(WRITE_BATCH_SIZE, len(self.buffer))))
+                metrics = tuple(
+                    self.buffer.popleft()
+                    for _ in range(min(WRITE_BATCH_SIZE, len(self.buffer)))
+                )
                 self.write(metrics)
                 self._last_write_time = time.time()
 

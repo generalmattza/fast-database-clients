@@ -38,9 +38,6 @@ import re
 import logging
 import os
 import sys
-from itertools import groupby
-from operator import attrgetter
-from typing import List
 from datetime import datetime
 import pytz
 
@@ -85,7 +82,7 @@ class FastInfluxDBClientConfigError(ErrorException):
 
 def verify_write_precision(write_precision: str) -> bool:
     assert isinstance(write_precision, str)
-    assert write_precision in set("ns", "us", "ms", "s")
+    assert write_precision in set(("ns", "us", "ms", "s"))
 
 
 def dict_to_point(
@@ -141,10 +138,28 @@ def localize_time(
     return timezone.localize(dt_utc)
 
 
-def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i : i + n]
+# def chunks(lst, n):
+#     """Yield successive n-sized chunks from lst."""
+#     for i in range(0, len(lst), n):
+#         yield lst[i : i + n]
+
+
+def chunks(iter, target_length):
+    """Yield successive chunks from iterator based on the cumulative length of 'field' values."""
+    chunk = []
+    chunk_length = 0
+
+    # Build up chunks until the cumulative length of 'field' values exceeds the target length
+    for item in iter:
+        if chunk_length + 1 > target_length:
+            yield chunk
+            chunk = []
+            chunk_length = 0
+        chunk.append(item)
+        chunk_length += 1
+    # If there are any items left in the chunk, yield them
+    if chunk:
+        yield chunk
 
 
 def convert_to_seconds(time_string):
@@ -196,13 +211,13 @@ class BatchingCallback(object):
     It provides methods for handling success, error, and retry scenarios.
     """
 
-    def success(self, conf: (str, str, str), data: str):
+    def success(self, conf: Tuple[str, str, str], data: str):
         logger.debug(f"Written batch: {conf}, data: {data}")
 
-    def error(self, conf: (str, str, str), data: str, exception: InfluxDBError):
+    def error(self, conf: Tuple[str, str, str], data: str, exception: InfluxDBError):
         logger.error(f"Cannot write batch: {conf}, data: {data} due: {exception}")
 
-    def retry(self, conf: (str, str, str), data: str, exception: InfluxDBError):
+    def retry(self, conf: Tuple[str, str, str], data: str, exception: InfluxDBError):
         logger.warning(
             f"Retryable error occurs for batch: {conf}, data: {data} retry: {exception}"
         )
@@ -267,7 +282,7 @@ class FastInfluxDBClient(DatabaseClientBase):
         :param default_write_precision: The default write precision for metrics.
         :param kwargs: Additional keyword arguments.
         """
-        client = InfluxDBClient.__init__(
+        client = InfluxDBClient(
             url, token, debug, timeout, enable_gzip, org, default_tags, **kwargs
         )
         db_client = cls()
@@ -315,8 +330,10 @@ class FastInfluxDBClient(DatabaseClientBase):
         )
         db_client = cls(buffer=buffer, write_interval=write_interval)
         db_client._client = client
-        db_client.write_batch_size = config.get("write_batch_size") or WRITE_BATCH_SIZE
-        default_write_precision = config.get("default_write_precision")
+        db_client.write_batch_size = (
+            config.get("influx").get("write_batch_size") or WRITE_BATCH_SIZE
+        )
+        default_write_precision = config.get("influx").get("default_write_precision")
         if default_write_precision:
             verify_write_precision(default_write_precision)
         db_client.default_write_precision = (
@@ -326,28 +343,26 @@ class FastInfluxDBClient(DatabaseClientBase):
         db_client.local_tz = config.get("influx").get("local_tz", "UTC")
         return db_client
 
-    def convert(
+    def convert_to_points(
         self, metrics: Union[InfluxMetric, dict], write_precision: str = None
-    ) -> Point:
+    ) -> Iterable[Point]:
         """
-        Convert a container of metrics to a Point object.
+        Convert a container of metrics to an Iterator of Point objects.
 
         :param metrics: The metrics to convert.
-        :return: The Point object.
+        :return: An Iterator of Point objects.
         """
         if isinstance(metrics, (InfluxMetric, dict)):
             metrics = [metrics]
 
         write_precision = write_precision or self.write_precision
 
-        metrics = [
+        yield (
             dict_to_point(
                 metric, write_precision=write_precision, local_tz=self.local_tz
             )
             for metric in metrics
-        ]
-
-        return metrics
+        )
 
     def write(
         self,
@@ -393,7 +408,7 @@ class FastInfluxDBClient(DatabaseClientBase):
                 )
             bucket = self.default_bucket
 
-        metrics = self.convert(metrics, write_precision=write_precision)
+        metrics = self.convert_to_points(metrics, write_precision=write_precision)
 
         with self._client.write_api(write_options=write_option) as write_api:
             metrics_chunks = chunks(metrics, self.write_batch_size)
@@ -557,8 +572,8 @@ class FastInfluxDBClient(DatabaseClientBase):
     def org(self):
         return self._client.org
 
-    def write_api(self):
-        return self._client.write_api()
+    # def write_api(self, *args, **kwargs):
+    #     return self._client.write_api(*args, **kwargs)
 
     def close(self):
         self.__del__()
