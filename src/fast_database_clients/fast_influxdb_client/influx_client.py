@@ -47,7 +47,7 @@ from influxdb_client.client.exceptions import InfluxDBError
 from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client.rest import ApiException
 
-from config_loader import load_configs
+from python_config_loader import load_configs
 
 from fast_database_clients.fast_database_client import DatabaseClientBase
 from fast_database_clients.fast_influxdb_client.influx_metric import (
