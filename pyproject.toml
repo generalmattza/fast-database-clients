@@ -2,7 +2,7 @@
 name = "fast-database-clients"
 description = "A class to facilitate rapid deployment of clients to send data to various databases"
 
-version = "2.2.5"
+version = "2.2.6"
 
 readme = "README.md"
 requires-python = ">=3.8"
@@ -28,11 +28,14 @@ dependencies = [
   "tomli >= 2.0.1 ; python_version < '3.11'",
   "pyyaml >= 6.0.1",
   "pytz >= 2024.1",
-  "config-loader @ git+https://github.com/davidson-engineering/python-config-loader.git@v0.1.3",
+  "config-loader>=v0.1.3",
 ]
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+config-loader = { git = "https://github.com/generalmattza/python-config-loader.git", rev = "v0.1.3" }
 
 [dependency-groups]
 dev = ["pytest>=8.3.4", "pytest-cov>=5.0.0"]
@@ -40,7 +43,7 @@ dev = ["pytest>=8.3.4", "pytest-cov>=5.0.0"]
 [project.urls]
 # homepage = "https://example.com"
 # documentation = "https://readthedocs.org"
-repository = "https://github.com/davidson-engineering/fast-database-clients"
+repository = "https://github.com/generalmattza/fast-database-clients.git"
 # changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
 
 # [project.scripts]
