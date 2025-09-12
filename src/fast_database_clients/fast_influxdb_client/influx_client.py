@@ -92,7 +92,11 @@ def dict_to_point(
         else:
             raise ValueError("data must be a dict or a dataclass")
 
-    write_precision = data.pop("write_precision") or DEFAULT_WRITE_PRECISION_DATA
+    write_precision = (
+        data.pop("write_precision", None)
+        or write_precision
+        or DEFAULT_WRITE_PRECISION_DATA
+    )
 
     if local_tz:
         data["time"] = localize_time(data["time"], local_tz)
