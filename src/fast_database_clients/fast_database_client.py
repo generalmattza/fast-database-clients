@@ -48,9 +48,6 @@ class DatabaseClientBase(ABC):
     @abstractmethod
     def query(self, query, **kwargs): ...
 
-    @abstractmethod
-    def close(self): ...
-
     def convert(self, data):
         return data
 
