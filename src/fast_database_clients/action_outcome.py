@@ -75,7 +75,7 @@ class ActionOutcomeMessage:
         """
         return f"{self.action_verbose} -> {self.outcome}"
 
-    def __call__(self, action=None, outcome=None, action_verbose=None):
+    def __call__(self, action=None, outcome=None, action_verbose=None, **extra_fields):
         """
         Update the action, outcome, or action_verbose attributes and return a log record.
 
@@ -83,9 +83,10 @@ class ActionOutcomeMessage:
             action (str): The action to update.
             outcome (str): The outcome to update.
             action_verbose (str): The verbose action to update.
+            **extra_fields: Additional structured fields to include in the log.
 
         Returns:
-            dict: A log record containing the message and details.
+            dict: A log record containing the message and structured extra fields.
         """
         if action:
             self.action = action
@@ -94,6 +95,12 @@ class ActionOutcomeMessage:
         if action_verbose:
             self.action_verbose = action_verbose
 
-        log_record = dict(msg=self.message, extra=dict(details=self.message_verbose))
+        extra = {
+            "action": self.action,
+            "outcome": str(self.outcome),
+            "details": self.action_verbose,
+            **extra_fields
+        }
+        log_record = dict(msg=self.message, extra=extra)
         return log_record
 

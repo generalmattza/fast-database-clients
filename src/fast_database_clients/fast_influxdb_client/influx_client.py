@@ -410,6 +410,13 @@ class FastInfluxDBClient(DatabaseClientBase):
             for metrics_batch in metrics_chunks:
                 metrics_batch = list(metrics_batch)
                 number_of_metrics = len(metrics_batch)
+
+                # Extract unique measurements from batch
+                measurements = set()
+                for point in metrics_batch:
+                    if hasattr(point, 'name'):
+                        measurements.add(point.name)
+
                 log_action_outcome = ActionOutcomeMessage(
                     action=f"Sending {number_of_metrics} metrics to influxdb",
                     action_verbose=f"Sending {number_of_metrics} metrics to influxdb server at {self._client.url}",
@@ -426,11 +433,22 @@ class FastInfluxDBClient(DatabaseClientBase):
                     outcome = ActionOutcome.FAILED
                     metrics_batch_names = set(point.name for point in metrics_batch)
                     logger.error(
-                        f"Failed to write metrics, {number_of_metrics} metrics will be discarded. {e}",
-                        extra={"discarded_metric_names": metrics_batch_names},
+                        "Failed to write metrics to InfluxDB",
+                        extra={
+                            "discarded_metric_names": list(metrics_batch_names),
+                            "metrics_count": number_of_metrics,
+                            "error": str(e),
+                            "event": "influxdb_write_failed"
+                        },
                     )
                 finally:
-                    logger.info(**log_action_outcome(outcome=outcome))
+                    logger.info(**log_action_outcome(
+                        outcome=outcome,
+                        metrics_count=number_of_metrics,
+                        measurements=sorted(measurements),
+                        bucket=bucket,
+                        event="influxdb_write"
+                    ))
 
     def query_table(self, query: str):
         """
