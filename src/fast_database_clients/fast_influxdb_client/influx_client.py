@@ -92,6 +92,8 @@ def dict_to_point(
         else:
             raise ValueError("data must be a dict or a dataclass")
 
+    data.pop("context", None)
+
     write_precision = (
         data.pop("write_precision", None)
         or write_precision
