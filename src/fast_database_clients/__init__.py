@@ -5,3 +5,6 @@ from fast_database_clients.fast_influxdb_client import (
     InfluxMetric,
     InfluxLoggingHandler,
 )
+from fast_database_clients.fast_influxdb3_client import FastInfluxDB3Client
+from fast_database_clients.database_router import DatabaseRouter
+from fast_database_clients.client_factory import create_database_clients

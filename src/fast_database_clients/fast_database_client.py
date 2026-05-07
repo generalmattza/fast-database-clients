@@ -36,10 +36,12 @@ class DatabaseClientBase(ABC):
         buffer: Optional[SupportsPopleft[T]] = None,
         write_interval: float = 0.5,
         write_batch_size: int = WRITE_BATCH_SIZE,
+        name: str = "",
         **kwargs,
     ) -> None:
         self._kwargs = kwargs
         self._client = None
+        self.name = name
         self._last_write_time = time.time()
         self.write_interval = float(write_interval)
         self.write_batch_size = int(write_batch_size)
@@ -100,7 +102,7 @@ class DatabaseClientBase(ABC):
                         try:
                             self.write(metrics)
                         except Exception as e:
-                            logger.error("Write operation failed: %s", e, exc_info=True)
+                            logger.error("Write operation failed", extra={"database": self.name, "error": str(e), "event": "write_failed"}, exc_info=True)
 
                     self._last_write_time = now
                 else:

@@ -260,6 +260,7 @@ class FastInfluxDBClient(DatabaseClientBase):
         default_tags: dict = None,
         default_write_precision: str = None,
         write_batch_size: int = WRITE_BATCH_SIZE,
+        name: str = "",
         **kwargs,
     ):
         """
@@ -274,12 +275,13 @@ class FastInfluxDBClient(DatabaseClientBase):
         :param org: The organization name for the InfluxDB server.
         :param default_tags: The default tags to include with each metric.
         :param default_write_precision: The default write precision for metrics.
+        :param name: The name of this database client (used in log labels).
         :param kwargs: Additional keyword arguments.
         """
         client = InfluxDBClient(
             url, token, debug, timeout, enable_gzip, org, default_tags, **kwargs
         )
-        db_client = cls(buffer=buffer, write_interval=write_interval)
+        db_client = cls(buffer=buffer, write_interval=write_interval, name=name)
         db_client._client = client
 
         if default_write_precision:
@@ -437,6 +439,7 @@ class FastInfluxDBClient(DatabaseClientBase):
                     logger.error(
                         "Failed to write metrics to InfluxDB",
                         extra={
+                            "database": self.name,
                             "discarded_metric_names": list(metrics_batch_names),
                             "metrics_count": number_of_metrics,
                             "error": str(e),
@@ -446,6 +449,7 @@ class FastInfluxDBClient(DatabaseClientBase):
                 finally:
                     logger.info(**log_action_outcome(
                         outcome=outcome,
+                        database=self.name,
                         metrics_count=number_of_metrics,
                         measurements=sorted(measurements),
                         bucket=bucket,
