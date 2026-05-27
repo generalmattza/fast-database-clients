@@ -16,6 +16,13 @@ import threading
 import time
 import logging
 
+from fast_database_clients.metrics import (
+    database_buffer_occupancy,
+    database_write_batch_metrics,
+    database_write_duration_seconds,
+    database_writes_total,
+)
+
 logger = logging.getLogger(__name__)
 
 MAX_BUFFER_LENGTH = 65_536
@@ -75,6 +82,7 @@ class DatabaseClientBase(ABC):
         try:
             self.__enter__()  # Open resources
             while not self._stop_event.is_set():
+                database_buffer_occupancy.labels(database=self.name).set(len(self.buffer))
                 time_condition = (time.time() - self._last_write_time) > self.write_interval
                 buf_len = len(self.buffer)
                 if buf_len and (buf_len >= self.write_batch_size or time_condition):
@@ -99,10 +107,21 @@ class DatabaseClientBase(ABC):
                             break
 
                     if metrics:
+                        database_write_batch_metrics.labels(database=self.name).observe(len(metrics))
+                        write_start = time.perf_counter()
+                        outcome = "success"
                         try:
                             self.write(metrics)
                         except Exception as e:
+                            outcome = "failure"
                             logger.error("Write operation failed", extra={"database": self.name, "error": str(e), "event": "write_failed"}, exc_info=True)
+                        finally:
+                            database_write_duration_seconds.labels(database=self.name).observe(
+                                time.perf_counter() - write_start
+                            )
+                            database_writes_total.labels(
+                                database=self.name, outcome=outcome
+                            ).inc()
 
                     self._last_write_time = now
                 else:

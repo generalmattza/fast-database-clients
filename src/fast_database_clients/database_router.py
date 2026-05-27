@@ -20,6 +20,12 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 from fast_database_clients.fast_database_client import DatabaseClientBase
+from fast_database_clients.metrics import (
+    database_router_batch_size,
+    database_router_loop_iterations_total,
+    database_router_metrics_dropped_total,
+    database_router_metrics_routed_total,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +91,7 @@ class DatabaseRouter:
 
     def _route_loop(self) -> None:
         while not self._stop_event.is_set():
+            database_router_loop_iterations_total.inc()
             buf_len = len(self.input_buffer)
             if buf_len > 0:
                 read_count = min(self.batch_size, buf_len)
@@ -100,6 +107,7 @@ class DatabaseRouter:
                         break
 
                 if metrics:
+                    database_router_batch_size.observe(len(metrics))
                     self._distribute(metrics)
             else:
                 time.sleep(self.poll_interval)
@@ -117,6 +125,7 @@ class DatabaseRouter:
             client = self.clients.get(db_name)
             if client is not None:
                 client.buffer.extend(batch)
+                database_router_metrics_routed_total.labels(database=db_name).inc(len(batch))
                 logger.debug(
                     "Routed %d metrics to '%s'",
                     len(batch),
@@ -124,6 +133,9 @@ class DatabaseRouter:
                     extra={"database": db_name, "metrics_count": len(batch), "event": "router_distribute"},
                 )
             else:
+                database_router_metrics_dropped_total.labels(
+                    database=db_name, reason="unknown_target"
+                ).inc(len(batch))
                 logger.error(
                     "Unknown database target '%s' -- %d metrics dropped",
                     db_name,
